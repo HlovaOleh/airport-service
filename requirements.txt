@@ -5,10 +5,12 @@ colorama==0.4.6
 decouple==0.0.7
 Django==4.2.6
 django-dotenv==1.4.2
+djangorestframework==3.14.0
 mypy-extensions==1.0.0
 packaging==23.2
 pathspec==0.12.1
 platformdirs==4.1.0
 python-dotenv==1.0.0
+pytz==2023.3.post1
 sqlparse==0.4.4
 tzdata==2023.3

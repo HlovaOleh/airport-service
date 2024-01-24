@@ -1,9 +1,11 @@
 from datetime import datetime
 
 from django.db.models import F, Count
-from rest_framework import mixins, viewsets
+from rest_framework import mixins, viewsets, status
+from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.response import Response
 
 from airport.models import (
     Airport,
@@ -27,7 +29,9 @@ from airport.serializers import (
     RouteDetailSerializer,
     OrderListSerializer,
     FlightListSerializer,
-    FlightDetailSerializer
+    FlightDetailSerializer,
+    AirplaneListSerializer,
+    AirplaneImageSerializer
 )
 
 
@@ -52,14 +56,16 @@ class RouteViewSet(
     permission_classes = (IsAuthenticatedOrIsAdminReadOnly,)
 
     def get_queryset(self):
-        source_id_str = self.request.query_params.get("source")
-        destination_id_str = self.request.query_params.get("destination")
+        source_str = self.request.query_params.get("source")
+        destination_str = self.request.query_params.get("destination")
         queryset = self.queryset
 
-        if source_id_str:
-            queryset = queryset.filter(source_id=int(source_id_str))
-        if destination_id_str:
-            queryset = queryset.filter(destination_in=int(destination_id_str))
+        if source_str:
+            queryset = queryset.filter(source__name__icontains=source_str)
+        if destination_str:
+            queryset = queryset.filter(
+                destination__name__icontains=destination_str
+            )
 
         return queryset.distinct()
 
@@ -86,9 +92,31 @@ class AirplaneViewSet(
     mixins.ListModelMixin,
     viewsets.GenericViewSet
 ):
-    queryset = Airplane.objects.all()
+    queryset = Airplane.objects.select_related("airplane_type")
     serializer_class = AirplaneSerializer
     permission_classes = (IsAuthenticatedOrIsAdminReadOnly,)
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return AirplaneListSerializer
+        if self.action == "upload_image":
+            return AirplaneImageSerializer
+        return AirplaneSerializer
+
+    @action(
+        methods=["POST"],
+        detail=True,
+        url_path="upload-image",
+        permission_classes=[IsAdminUser]
+    )
+    def upload_image(self, request):
+        airplane = self.get_object()
+        serializer = self.get_serializer(airplane, data=request.data)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CrewViewSet(
@@ -157,7 +185,7 @@ class FlightViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(show_time__date=date)
 
         if route_id_str:
-            queryset = queryset.filter(movie_id=int(route_id_str))
+            queryset = queryset.filter(route_id=int(route_id_str))
 
         return queryset
 

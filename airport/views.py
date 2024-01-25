@@ -128,7 +128,7 @@ class AirplaneViewSet(
         url_path="upload-image",
         permission_classes=[IsAdminUser]
     )
-    def upload_image(self, request):
+    def upload_image(self, request, pk=None):
         airplane = self.get_object()
         serializer = self.get_serializer(airplane, data=request.data)
 
